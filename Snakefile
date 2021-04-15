@@ -10,6 +10,7 @@ ASSEMBLIES = []
 for item in os.listdir(INPUT_FASTA_PATH):
     if not item.endswith('.fasta'):
         sys.stderr.write('\nSkipping over {}...'.format(item))
+        continue
     ASSEMBLIES.append(item.rsplit('.', 1)[0])
 
 
@@ -27,7 +28,7 @@ rule count_kmers_in_assembly:
     benchmark:
         'rsrc/output/kmer_db/{assembly}.k{kmer}.count.rsrc'
     conda:
-        '../../environment/conda/conda_biotools.yml'
+        'environment/conda/conda_biotools.yml'
     threads: config['num_cpu_medium']
     resources:
         mem_total_mb = lambda wildcards, attempt: 32768 * attempt,
@@ -65,7 +66,7 @@ rule determine_shared_kmers:
     benchmark:
         'rsrc/output/shared_kmers/uniq.k{kmer}.meryl.rsrc'
     conda:
-        '../../environment/conda/conda_biotools.yml'
+        'environment/conda/conda_biotools.yml'
     threads: config['num_cpu_medium']
     resources:
         mem_total_mb = lambda wildcards, attempt: 4096 * attempt,
