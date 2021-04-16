@@ -17,7 +17,7 @@ for item in os.listdir(INPUT_FASTA_PATH):
 rule count_kmers_in_assembly:
     """
     Create k-mer db
-    and also a dump highly frequent k-mers
+    and also a dump highly repetitive k-mers
     (could be needed for winnowmap alignment to that assembly)
     """
     input:
@@ -53,6 +53,10 @@ def assemble_meryl_intersect(kmer_dbs):
 
 
 rule determine_shared_kmers:
+    """
+    The 'memory' limit seems to be ignored for the intersect operation,
+    resources now set to fit the current job requirements
+    """
     input:
         expand(
             'output/kmer_db/{assembly}.k{{kmer}}.db/',
@@ -60,7 +64,7 @@ rule determine_shared_kmers:
         )
     output:
         db = directory('output/shared_kmers/uniq.k{kmer}.db/'),
-        listing = 'output/shared_kmers/uniq.k{kmer}.txt'
+        listing = 'output/shared_kmers/uniq.k{kmer}.txt.gz'
     log:
         'log/output/shared_kmers/uniq.k{kmer}.meryl.log'
     benchmark:
@@ -69,18 +73,19 @@ rule determine_shared_kmers:
         'environment/conda/conda_biotools.yml'
     threads: config['num_cpu_medium']
     resources:
-        mem_total_mb = lambda wildcards, attempt: 4096 * attempt,
-        mem_total_gb = lambda wildcards, attempt: 4 * attempt,
-        runtime_hrs = lambda wildcards, attempt: 8 * attempt
+        mem_total_mb = lambda wildcards, attempt: 28672 * attempt,
+        mem_total_gb = lambda wildcards, attempt: 28 * attempt,
+        runtime_hrs = lambda wildcards, attempt: attempt * attempt
     params:
-        meryl_call = lambda wildcards, input: assemble_meryl_intersect(input)
+        meryl_call = lambda wildcards, input: assemble_meryl_intersect(input),
+        pigz_threads = config['num_cpu_medium'] - 2
     shell:
         'meryl threads={threads} memory={resources.mem_total_gb} '
         'intersect '
         '{params.meryl_call} '
         'output {output.db} &> {log} '
         '&& '
-        'meryl print {output.db} > {output.listing}'
+        'meryl print {output.db} | cut -f 1 | pigz -p {params.pigz_threads} > {output.listing}'
 
 
 rule master:
